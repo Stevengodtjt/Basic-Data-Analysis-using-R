@@ -1,0 +1,236 @@
+---
+title: "Class Test 1 Marking Scheme"
+output:
+  pdf_document:
+          latex_engine: xelatex
+          number_sections: no
+fig_caption: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, comment = NA)
+```
+
+```{r, eval = TRUE, warning = FALSE, message = FALSE}
+library(ggplot2)
+library(dplyr)
+library(moderndive)
+library(skimr)
+library(kableExtra)
+library(gridExtra)
+library(MASS)
+library(readr)
+library(tidyr)
+```
+
+```{r, eval = TRUE, warning = FALSE, message = FALSE}
+PGA <- read_csv("PGALPGA2008.csv")
+PGA$Gender <- as.factor(PGA$Gender)
+```
+
+Successful upload of `.pdf` file.
+
+\begin{flushright}2 MARKS\end{flushright}
+
+# Report
+
+## Introduction {#sec:intro}
+
+Introduction to the data being analysed and to the question of interest. No marks for copying the data description as given. 1 mark removed if the document title has not been changed.
+
+\begin{flushright}2 MARKS\end{flushright}
+
+## Exploratory data analysis {#sec:eda}
+
+Summary statistics of the data with appropriate comments. 1 mark removed if the output is simply 'copy-pasted' from R.
+
+\begin{flushright}3 MARKS\end{flushright}
+
+```{r, echo = FALSE, eval = TRUE, warning = FALSE, message = FALSE}
+PGA %>%
+  group_by(Gender) %>%
+   summarize('Accuracy (Mean)' = mean(Accuracy), 'Accuracy (Median)' = median(Accuracy),
+             'Accuracy (sd)' = sd(Accuracy)) %>%
+  kable(caption = '\\label{tab:summary} Mean, median and standard deviation (sd) of accuracy by gender.', booktabs = TRUE, digits = 2) %>%
+  kable_styling(font_size = 9, latex_options = "hold_position")
+```
+
+<!-- This code commented out below is now deprecated and may not work -->
+<!-- # ```{r, eval = TRUE, warning = FALSE, message = FALSE} -->
+<!-- # skim_with(numeric = list(hist = NULL, missing = NULL, complete = NULL, n = NULL, variable = NULL)) -->
+<!-- # PGA %>% -->
+<!-- #   group_by(Gender) %>% -->
+<!-- #   skim_to_list() %>% -->
+<!-- #   .$numeric %>% -->
+<!-- #   kable(col.names = c("Gender", "Variable", "Mean", "SD", "Minimum", "1st quartile", "Median", -->
+<!-- #                       "3rd quartile", "Maximum"),  -->
+<!-- #         caption = '\\label{tab:summary} Summary statistics on driving accuracy by gender.', -->
+<!-- #         booktabs = TRUE) %>% -->
+<!-- #   kable_styling(font_size = 10, latex_options = "hold_position") -->
+<!-- # ``` -->
+
+Boxplot of accuracy by gender. 1 mark removed if the plot is not appropriately labelled, and axis labels not adjusted accordingly.
+
+\begin{flushright}2 MARKS\end{flushright}
+
+```{r, eval = TRUE, out.width = '68%', fig.align = "center", warning = FALSE, fig.cap = "\\label{fig:box} Driving accuracy between PGA and LPGA Tour golfers in 2008.", fig.pos = 'H'}
+ggplot(PGA, aes(x = Gender, y = Accuracy)) +
+  geom_boxplot() +
+  labs(x = "Gender", y = "Drive accuracy (%)", title = "")
+```
+
+Comments on the boxplot related to the question of interest. 
+
+
+## Formal data analysis {#sec:fda}
+
+State the linear regression model being fitted, i.e.
+
+$$\widehat{\mbox{accuracy}} = \widehat{\alpha} + \widehat{\beta}_{\mbox{Male}} \cdot \mathbb{I}_{\mbox{Male}}(x) $$
+
+where
+
+  * the intercept $\widehat{\alpha}$ is the mean accuracy for the baseline category (females);
+  * $\widehat{\beta}_{\mbox{Male}}$ is the difference in the mean accuracy of males relative to the baseline category (females); and
+  * $\mathbb{I}_{\mbox{Male}}(x)$ is an indicator function such that
+
+    $$\mathbb{I}_{\mbox{Male}}(x)=\left\{
+                \begin{array}{ll}
+                  1 ~~~ \mbox{if the gender of} ~ x \mbox{th observation is Male},\\
+                  0 ~~~ \mbox{Otherwise}.\\
+                \end{array}
+              \right.$$
+
+\begin{flushright}2 MARKS\end{flushright}
+
+```{r, eval = TRUE, warning = FALSE, message = FALSE}
+model <- lm(Accuracy ~ Gender, data = PGA)
+Coefs <- round(coef(model), 3)
+```
+
+Regression model output. 1 mark removed if the regression output is simply 'copy-pasted' from R.
+
+\begin{flushright}2 MARKS\end{flushright}
+
+```{r, eval = TRUE, warning = FALSE, message = FALSE}
+get_regression_table(model)[, 1:2] %>%
+  kable(caption = '\\label{tab:reg} Estimates of the intercept and slope from the fitted linear regression model.',
+        booktabs = TRUE) %>%
+  kable_styling(latex_options = 'HOLD_position')
+```
+
+Appropriate comments on the regression coefficients and differences between males and females.
+
+\begin{flushright}2 MARKS\end{flushright}
+
+```{r, eval = TRUE, warning = FALSE, message = FALSE}
+regression.points <- get_regression_points(model)
+```
+
+Plots for checking model assumptions. 1 mark removed if not properly labelled. 
+
+\begin{flushright}3 MARKS\end{flushright}
+
+```{r, eval = TRUE, fig.width = 13, fig.align = "center", warning = FALSE, fig.cap = "\\label{fig:resids} Scatterplots of the residuals by gender (left) and a histogram of the residuals (right).", fig.pos = 'H', message = FALSE}
+p1 <- ggplot(regression.points, aes(x = Gender, y = residual)) +
+      geom_jitter(width = 0.1) + 
+      labs(x = "Gender", y = "Residual") +
+      geom_hline(yintercept = 0, col = "blue")
+
+p2 <- ggplot(regression.points, aes(x = residual)) +
+      geom_histogram(color = "white") +
+      labs(x = "Residual") 
+
+grid.arrange(p1, p2, ncol = 2)
+```
+
+Appropriate comments on the model assumptions. 
+
+\begin{flushright}3 MARKS\end{flushright}
+
+## Conclusions {#sec:con}
+
+Overall conclusions with an answer to the question of interest. 
+
+\begin{flushright}2 MARKS\end{flushright}
+
+General report layout. This should include figure and table captions, with marks not awarded if these are
+not used. 1 mark removed if hyperlinks for sections and figures not implemented (tables are allowed no hyperlinks). 1 mark removed for consistently poor spelling mistakes/errors.
+
+\begin{flushright}2 MARKS\end{flushright}
+
+***
+\begin{flushright}Total: 25 MARKS\end{flushright}
+
+# Further Question 1
+
+```{r, warning=FALSE, message=FALSE}
+q1data <- read_csv("test1.csv")
+```
+
+Modify the data into `tidy` format and set the categorical variable to type `factor` using:
+
+```{r, echo = TRUE}
+q1datatidy <- gather(data = q1data, 
+                    key = Fertilizer,
+                    value = Yield) 
+q1datatidy$Fertilizer <- as.factor(q1datatidy$Fertilizer)
+```
+
+2 marks are awarded for converting to the `tidy` format, while 1 mark is awarded for converting `Fertilizer` to a factor.
+
+\begin{flushright}3 MARKS\end{flushright}
+
+To graphically compare the distribution of the yields from the four fertilizers we produce boxplots.
+
+```{r, echo = TRUE, fig.cap = "\\label{fig:box1} Distribtuion of the crop yields for each fertilizer (A-C) and control group (D).", fig.pos = "H", out.width = '60%', fig.align = "center"}
+ggplot(data = q1datatidy, aes(y = Yield, x = Fertilizer)) +
+         geom_boxplot()
+```
+
+2 marks are awarded for producing the appropriately labelled boxplot.
+
+The boxplots suggest that there are **two outliers** (i.e. extremely small yields compared to the other 8 yields) for fertilizer A.  These should be at the very least investigated further and potentially removed from the data. The boxplots also suggest fertilizer C produces the **biggest crop** yields, then B, then A (with **large variation**) with the control group (D) having the smallest yields.
+
+2 marks are awarded for appropriate comments relating to the data and boxplots.
+
+\begin{flushright}4 MARKS\end{flushright}
+
+***
+\begin{flushright}Total: 7 MARKS\end{flushright}
+
+# Further Question 2
+
+```{r, echo = TRUE, eval = TRUE, warning = FALSE}
+set.seed(10)
+n_sim <- 100
+corr <- 0.6
+mu <- c(10, 18)
+sigma <- matrix(c(1, corr, corr, 1), 2, 2)
+sim <- mvrnorm(n_sim, mu = mu, Sigma = sigma)
+colnames(sim) <- c("X", "Y")
+```
+
+2 marks are awarded for correctly identifying the number of observations, the means of $X$ and $Y$, and the correlation matrix. An additional 2 marks are awarded for the correct use of the `mvrnorm()` function.
+
+\begin{flushright}4 MARKS\end{flushright}
+
+```{r, echo = TRUE, eval = TRUE, warning = FALSE, out.width = '60%', fig.align = "center", fig.cap = "Scatterplot of Y against X.", fig.pos = "H"}
+sim <- as.data.frame(sim)
+ggplot(data = sim, aes(x = X, y = Y)) +
+  geom_point() +
+  labs(x = "X", y = "Y")
+
+sim %>%
+  summarize(cor(X, Y))
+```
+
+1 mark for producing the scatterplot and comments, and 1 mark for obtaining the correlation coefficient.
+
+\begin{flushright}2 MARKS\end{flushright}
+
+***
+\begin{flushright}Total: 6 MARKS\end{flushright}
+
+***
+\begin{flushright}Total: 40 MARKS\end{flushright}

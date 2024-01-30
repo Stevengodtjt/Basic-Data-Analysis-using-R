@@ -1,0 +1,245 @@
+---
+title: "Investigating trends of obesity prevalence in Scotland  \n  and the influence of lifestyle factors on obesity"
+subtitle: "Group 1"
+author: "Students: Juntao Tian, Yuxin Zhang, Yijia Sun, Mike Ji"
+output:
+  pdf_document:
+          latex_engine: xelatex
+          number_sections: yes
+fig_caption: yes
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE, comment = NA, message = FALSE)
+```
+
+```{r, eval = TRUE, warning = FALSE, message = FALSE}
+library(ggplot2)
+library(dplyr)
+library(moderndive)
+library(skimr)
+library(kableExtra)
+library(readr)
+library(tidyr)
+library(infer)
+library(gapminder)
+library(sjPlot)
+library(stats)
+library(janitor)
+```
+
+
+```{r, echo = FALSE, eval = TRUE, warning = FALSE, message = FALSE}
+lifestyle <- read_csv("DAProject9.csv")
+```
+
+```{r include=FALSE}
+any(is.na(lifestyle))
+```
+
+# Introduction
+
+With the gradual improvement of people’s living standards, health issues are becoming more and more important.Obesity not only influences appearance, but also causes a lot of harm to the body, including short life expectancy, high blood pressure and heart disease.What's more,numerous studies show that socio-economic inequalities in obesity persist or are increasing in many European countries.In such situation,Scottish’s weight data and the classification of their weight (BMI level) has been recorded since the establishment of the Scottish Health Survey.
+
+To keep an eye on health trends in Scotland from 2008 to 2012, people with different ages(aged from 16 to 75+) living in Scotland were included in the survey.In addition,for a closer monitoring of health trends,people were grouped by age,gender,employment status and BMI status in different years.The main purposes of this report are: exploring whether the prevalence of obesity in Scotland has changed over the years and investigating whether there are any influences of lifestyle factors(age,gender,employment status) on obesity.
+
+# Exploratory analysis
+
+## First question of interest
+```{r echo=FALSE}
+for( i in 1:nrow(lifestyle)){
+  if(lifestyle$BMIgroup[i]!="Obese"){
+    lifestyle$BMIgroup[i]="Non-Obese"
+  }
+}
+```
+
+```{r}
+lifestyle$AgeGroup<-as.factor(lifestyle$AgeGroup)
+lifestyle$Sex<-as.factor(lifestyle$Sex)
+lifestyle$Employment<-as.factor(lifestyle$Employment)
+lifestyle$BMIgroup<-as.factor(lifestyle$BMIgroup)
+lifestyle$Year<-as.factor(lifestyle$Year)
+```
+The first objective of this study is to find whether the prevalence of obesity in Scotland changed over the given years of the Scottish Health Survey.In order to make our analysis more straightforward,we simply divided the BMI group into two levels which includes obesity group and non-obesity group.The proportion of obesity each year is given by Table \ref{tab:summary1} below.
+
+From Table \ref{tab:summary1},we see that the proportion of obesity was 29.6% in 2008.In 2009,the proportion of obesity was 28.8%.In 2010,the proportion of obesity was 30.5%.In 2011,the proportion of obesity was 29.6%.Finally,the proportion of obesity was 29.6% in 2012.
+```{r echo=FALSE}
+lifestyle %>%
+  tabyl(Year,BMIgroup) %>%
+  adorn_percentages() %>%
+  adorn_pct_formatting() %>%
+  adorn_ns()%>%
+  kable(caption = '\\label{tab:summary1} The proportion of Obesity over the given years of the Scottish Health Survey',booktabs = TRUE) %>%
+  kable_styling(latex_options = 'HOLD_position')
+```
+
+Figure \ref{fig:year} confirms that the prevalence of obesity fluctuated up and down around 29.6% throughout the years of the study.
+
+```{r, eval = TRUE, out.width = '68%', fig.width=6,fig.height=3,fig.align = "center", warning = FALSE, fig.cap = "\\label{fig:year} Barplot of the proportion of Obesity by Year", fig.pos = 'H'}
+ggplot(data = lifestyle, aes(x = BMIgroup, group =Year)) +
+  geom_bar(aes(y = ..prop.., fill =Year), stat = "count", position = "dodge") +
+  labs(x = "Obesity or not", y = "Proportion")
+ 
+```
+## Second question of interest
+
+The second objective is to explore whether there are any differences in obesity by age, gender, socio-economic status or lifestyle factors.We firstly investigate how obesity rate changed in different age groups.Table \ref{tab:age} gives the proportion of obesity and non-obesity in different age groups.
+
+
+```{r echo=FALSE}
+lifestyle %>%
+  tabyl(AgeGroup,BMIgroup) %>%
+  adorn_percentages() %>%
+  adorn_pct_formatting() %>%
+  adorn_ns() %>%
+  kable(caption = '\\label{tab:age}Obesity rate in different age groups',
+        booktabs = TRUE) %>%
+  kable_styling(latex_options = 'HOLD_position')
+```
+Figure \ref{fig:age} is the barplot of the proportion of being obese or non-obese in different age groups.There is a clear pattern here that the proportion of non-obesity was much higher than the proportion of obesity in all age groups.The proportion of obesity was the lowest in age group 16-24 and it was the highest in age group 55-64.
+
+```{r, eval = TRUE, out.width = '68%',fig.width=6,fig.height=3,fig.align = "center", warning = FALSE, fig.cap = "\\label{fig:age} Barplot of the proportion of Obesity by Age groups", fig.pos = 'H'}
+ggplot(data = lifestyle, aes(x = BMIgroup, group =AgeGroup)) +
+  geom_bar(aes(y = ..prop.., fill = AgeGroup), stat = "count", position = "dodge") +
+  labs(x = "Obesity or not", y = "Proportion")
+```
+
+Then we start to investigate how obesity rate changed in different gender groups.Table \ref{tab:sex} gives the proportion of obesity and non-obesity in different gender groups.
+
+```{r echo=FALSE}
+
+lifestyle %>%
+  tabyl(Sex,BMIgroup) %>%
+  adorn_percentages() %>%
+  adorn_pct_formatting() %>%
+  adorn_ns() %>%
+  kable(caption = '\\label{tab:sex}Obesity rate in different sex groups',
+        booktabs = TRUE) %>%
+  kable_styling(latex_options = 'HOLD_position')
+```
+
+Figure \ref{fig:sex} is the barplot of the proportion of being obese or non-obese in different sex groups.From the plot,There is no sharp distinction in obesity for female group and male group.Both female and male groups show that the obesity rate were around 30%.
+```{r, eval = TRUE, out.width = '68%', fig.width=6,fig.height=3,fig.align = "center", warning = FALSE, fig.cap = "\\label{fig:sex} Barplot of the proportion of Obesity by Sex groups", fig.pos = 'H'}
+
+ggplot(data = lifestyle, aes(x = BMIgroup, group =Sex)) +
+  geom_bar(aes(y = ..prop.., fill = Sex), stat = "count", position = "dodge") +
+  labs(x = "Obesity or not", y = "Proportion")
+ 
+```
+
+In addition,we try to find out whether the obesity rate changed for people in different employment situations or not.Table \ref{tab:socio} gives the proportion of obesity and non-obesity in different employment groups.
+```{r echo=FALSE}
+lifestyle %>%
+  tabyl(Employment,BMIgroup) %>%
+  adorn_percentages() %>%
+  adorn_pct_formatting() %>%
+  adorn_ns() %>%
+  kable(caption = '\\label{tab:socio}Obesity rate in different employment status groups',
+        booktabs = TRUE) %>%
+  kable_styling(latex_options = 'HOLD_position')
+```
+
+Figure \ref{fig:socio} shows that people in full-time education had the lowest rate of being obese while people permanently unable to work had the highest rate of being obese.
+```{r, eval = TRUE, out.width = '80%',fig.width=8,fig.height=3,fig.align = "center", warning = FALSE, fig.cap = "\\label{fig:socio} Barplot of the proportion of Obesity by Employment status groups", fig.pos = 'H'}
+
+ggplot(data = lifestyle, aes(x = BMIgroup, group =Employment)) +
+  geom_bar(aes(y = ..prop.., fill = Employment), stat = "count", position = "dodge") +
+  labs(x = "Obesity or not", y = "Proportion")
+```
+
+
+# Formal analysis
+
+## First question of interest
+
+To investigate whether the prevalence of obesity in Scotland changed during these years, we need to fit a model with **BMIgroup** as the response variable and **Year** as the explanatory variable.
+```{r echo=FALSE}
+model.year<- glm(BMIgroup ~ Year, data = lifestyle,
+                   family = binomial(link = "logit"))
+
+model.coef<-model.year %>%
+             summary() %>%
+             coef()
+
+kable(model.coef,caption='\\label{tab:coef}Estimates of the intercept and slope from the model',
+      booktabs=TRUE,digits=2) %>%
+kable_styling(font_size=9,latex_options="hold_position")
+```
+From Table \ref{tab:coef}, the coefficients for years are all greater than 0.05 ,implying there was no significant evidence that the prevalence of obesity changed over the given years.
+
+## Second question of interest
+
+After an initial understanding of how obesity rate differed by age,gender,socio-economic status or lifestyle factors from exploratory analysis part, we shall fit a **logistic regression model** to look more specifically on how obesity rate changed in different age groups,gender groups and employment groups.
+
+```{r include=FALSE}
+model.full<- glm(BMIgroup ~ AgeGroup + Sex+ Employment, data = lifestyle,
+                   family = binomial(link = "logit"))
+
+model.full %>%
+  summary() %>%
+  coef()
+```
+
+
+```{r}
+a<-"SexMale"
+b<--0.04
+c<-0.03
+d<-0.19
+
+coef<-cbind(a,b,c,d)
+coef<-as.data.frame(coef)
+colnames(coef)<-c("Variable","Estimate","Std.Error","Pr(>|z|)")
+
+kable(coef,caption='\\label{tab:p} variable to be removed from the initial model',
+       booktabs=TRUE,format="latex")%>%
+kable_styling(font_size=9,latex_options="hold_position")
+```
+To optimize our model,we will remove those variables with p values less than 0.05 in summary results and re-run the logistic regression algorithm until all variables in the model are significant.From Table \ref{tab:p},gender is not a significant variable,indicating the chance of being obese for males doesn't differ much from females.So,the new model will only include age groups and employment groups as explanatory variables.
+
+```{r echo=FALSE}
+mod.obesity <- glm(BMIgroup ~ AgeGroup + Employment, data = lifestyle,
+                   family = binomial(link = "logit"))
+
+mod.coef<-mod.obesity %>%
+             summary() %>%
+             coef()
+
+kable(mod.coef,caption='\\label{tab:coef4}Estimates of the intercept and slope from the new model ',
+      booktabs=TRUE,digits=2) %>%
+kable_styling(font_size=9,latex_options="hold_position")
+```
+**Notice**: The basline category for our binary response is "Non-obese".Also the basline category for age groups is "16-24" and the basline category for employment groups is "Doing something else".
+
+From Table \ref{tab:coef4},we see that the coefficients for age group 25-34(AgeGroup25-34),age group 35-44(AgeGroup35-44),age group 45-54(AgeGroup45-54),age group 55-64(AgeGroup55-64),age group 65-74(AgeGroup65-74) and age group 75+(AgeGroup75+) are all positive and significant(P-value is smaller than 0.05), with the magnitude of the age group 55-64 coefficient larger than any other age group's coefficient. This suggests that people aged between 55 and 64 have more chance of being obese in comparison with people of other ages. 
+
+Besides,the coefficient for full-time education group(EmploymentIn full-time education) is negative and significant while the coefficient for perm unable to work group(EmploymentPerm unable to work) is positive and significant, suggesting that people in full-time education have less chance of being obese than people doing something else and people unable to work have more chance of being obese than people doing something else.Except for these two employment situations,there is no significant difference between the chance of being obese for people doing something else and for people in other employment groups.
+
+The new model could be written as follows:
+$$ ln\left ( \frac{p}{1-p} \right ) = -1.52 + 0.27\cdot \mathbb{I}_{\mbox{Age}}(25-34) + 0.69\cdot \mathbb{I}_{\mbox{Age}}(35-44)+0.74\cdot \mathbb{I}_{\mbox{Age}}(45-54)+0.93\cdot \mathbb{I}_{\mbox{Age}}(55-64)+$$
+$$0.91\cdot \mathbb{I}_{\mbox{Age}}(65-74)+0.60\cdot \mathbb{I}_{\mbox{Age}}(75+)-0.67\cdot \mathbb{I}_{\mbox{Employment}}(full \; time \;education)+0.30\cdot \mathbb{I}_{\mbox{Employment}}(perm \; unable \;to\;work)$$
+```{r, eval = TRUE, out.width = '68%', fig.align = "center", warning = FALSE, fig.cap = "\\label{fig:odds} Odds of being obese in different groups(The significance of coefficient is marked by *)", fig.pos = 'H'}
+plot_model(mod.obesity, show.values = TRUE,
+           title = "", show.p = TRUE, value.offset = 0.25)
+```
+From Figure \ref{fig:odds},we interpret the odds ratios as follows:
+
+People aged 25-34 odds of obese were 1.31 times those of aged 16-24, people aged 35-44 odds of obese were 1.99 times those of aged 16-24,people aged 45-54 odds of obese were 2.10 times those of aged 16-24,people aged 55-64 odds of obese were 2.55 times those of aged 16-24,people aged 65-74 odds of obese were 2.47 times those of aged 16-24 and people aged 75+ odds of obese were 1.82 times those of aged 16-24.
+
+In addition,people in full-time education odds of obese were 0.51 times those of doing something else,people permanently unable to work odds of obese were 1.34 times those of doing something else.
+
+# Conclusions
+
+In conclusion,the prevalence of obesity in Scotland from 2008 to 2012 has not changed much as its prevalence value shift around 30%.When it comes to the influence of lifestyle factors on obesity,first of all,we find that people aged between 55 and 64 have greater chance of being obese compared to other age groups.Besides,there doesn't seem to be an obvious difference between male and female obesity chance as both indicated about 30% of chance of being obese.In  terms of employment status,the full-time education group (Employment In full-time education) and perm unable to work group (Employment Perm unable to work) stand out the most among other groups.From the above result, People in full-time education have lower probability of being obese than people who are doing something else; People who are permanently unable to work have higher chance of being obese than people who are doing something else.
+
+More specifically,people aged between 55 and 64 tend to gain more weight as it is the typical age for people to retire from their work. Not being able to adjust their lifestyle due to extra spare time after retirement can be one of the reasons that leads to obesity.Despite the genetic factor of being obese, human muscle mass decrease gradually as age diminishes.Thus, with a sudden change to lifestyle and muscle mass drop, more fat may be generated due to the body's metabolism slowing down.So it is very common for people to gain weight rapidly at the age of 55 to 64.In addition,it is estimated that people in full-time education have rather busy lifestyle as well as better incomes compared to people who are unable to work permanently which makes them have less chance of being obese. 
+
+
+
+
+
+
+
+
+

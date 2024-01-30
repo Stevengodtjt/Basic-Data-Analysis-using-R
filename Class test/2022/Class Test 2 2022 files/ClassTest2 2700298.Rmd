@@ -1,0 +1,259 @@
+---
+title: "Data Analysis Class Test 2"
+author: "2700298"
+output:
+  pdf_document:
+          latex_engine: xelatex
+          number_sections: yes
+fig_caption: yes
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE, comment = NA, message = FALSE)
+```
+
+```{r, eval = TRUE, warning = FALSE, message = FALSE}
+library(ggplot2)
+library(dplyr)
+library(moderndive)
+library(skimr)
+library(kableExtra)
+library(gridExtra)
+library(MASS)
+library(knitr)
+library(datasets)
+library(broom)
+library(infer)
+library(janitor)
+library(tidyr)
+library(ISLR)
+library(readr)
+library(stats)
+library(sjPlot)
+```
+
+<!-- Update the title of the report and the author of the document appropriately -->
+
+# Relationship between house price and the number of bathrooms by type of parking
+
+<!-- Read in the .csv file for the report section. -->
+
+```{r, eval = TRUE, warning = FALSE}
+house <- read_csv("HousingPrices.csv")
+house$Parking <- as.factor(house$Parking)
+house$Bathrooms<-as.factor(house$Bathrooms)
+```
+
+## Introduction {#sec:intro}
+
+As we all know,economic status could be reflected by housing prices.The data was collected by a realtor which included the house price (in pounds) of 300 houses at the time of sale within the last six months.Besides,the number of bathrooms and the type of parking for each house were collected as well.The main purpose of this report is to examine the relationship between house price and the number of bathrooms and try to determine whether it changes by type of parking or not.
+
+## Exploratory Analysis {#sec:EA}
+
+```{r include=FALSE}
+any(is.na(house))
+```
+
+There is no missing value in the data after checking.The summary statistics of the house prices by type of parking are given by Table \ref{tab:summary1} and the counts for different number of bathrooms by type of parking are given by Table \ref{tab:summary2}.
+
+From Table \ref{tab:summary1},we see that the mean price of houses with covered parking (510711.6 pounds) is greater than the mean price of houses with open parking (487128.4 pounds).What's more, the maximum price as well as the minimum price of houses with covered parking are respectively higher than the maximum price and minimum price of houses with open parking.In addition, the standard deviation of the price for houses with covered parking is greater than the standard deviation of the price for houses with open parking,which indicates that the difference in price among houses with covered parking is larger than the difference in price among houses with open parking.
+
+```{r, echo = FALSE, eval = TRUE, warning = FALSE, message = FALSE}
+house_parking<- house %>% 
+                      group_by(Parking)
+my_skim <- skim_with(numeric = list(hist = NULL, missing = NULL, complete = NULL, n = NULL))
+skim_parking = my_skim(house_parking) %>%
+   dplyr::select(-factor.top_counts,-skim_type,-numeric.hist,-n_missing,-complete_rate,-factor.ordered,-factor.n_unique)
+
+   kable(skim_parking[c(3,4),],col.names = c("Variable", "Parking","Mean", "SD", "Minimum", "1st Q.", "Median" , "3rd Q." , "Maximum"),
+        caption = '\\label{tab:summary1} Summary statistics of house prices by type of parking',
+        booktabs = TRUE, format = "latex", digits = 2,linesep = "") %>%
+  kable_styling(font_size = 10, latex_options = "hold_position")
+   
+bathroom_parking = table(house$Bathrooms,house$Parking)
+bathroom = c(1,2,3,4)
+bathroom_parking = cbind(bathroom,bathroom_parking)
+   kable(bathroom_parking,col.names = c("Bathrooms","Coverd.number", "Open.number" ),
+        caption = '\\label{tab:summary2} Counts for different number of bathrooms by type of parking',
+        booktabs = TRUE, format = "latex", digits = 2,linesep = "") %>%
+  kable_styling(font_size = 10, latex_options = "hold_position")
+
+```
+
+From Table \ref{tab:summary2}, we notice that for houses with covered parking, 2 bathrooms are the most common type and 1 bathroom is the most uncommon type.For houses with open parking, 2 bathrooms are also the most
+common type while 4 bathrooms are the most uncommon type.
+
+```{r, echo = FALSE, eval = TRUE, out.width = '60%', fig.align = "center", warning = FALSE, fig.cap = "\\label{fig:scat}Relationship between house price and the number of bathrooms by type of parking.", fig.pos = 'H'}
+ggplot(house, aes(x = Bathrooms, y = Price, color = Parking)) +
+  geom_boxplot() +
+  labs(x = "The number of bathrooms", y = "House price (pounds)",
+        color = "Parking", title = "")
+```
+Figure \ref{fig:scat} shows the relationship between house price and the number of bathrooms by type of parking. From the plot,we see that the price increases with the number of bathrooms both for houses with covered parking and houses with open parking.In addition,the mean price of houses with covered parking is higher than the mean price of houses with open parking when the number of bathrooms equals to one,two,three respectively.However,the mean price of houses with covered parking is less than the mean price of houses with open parking when the number of bathrooms equals to four.
+
+
+## Formal Analysis {#sec:FA}
+
+The multiple linear regression model with interaction term between the number of bathrooms and the type of parking (full model) will be fitted as follows:
+$$\widehat{\mbox{Price}} = \widehat{\alpha} + \widehat{\beta}_{\mbox{bathroom=2}} \cdot  \mathbb{I}_{\mbox{bathroom=2}}(i)+\widehat{\beta}_{\mbox{bathroom=3}} \cdot  \mathbb{I}_{\mbox{bathroom=3}}(i)+$$
+$$\widehat{\beta}_{\mbox{bathroom=4}} \cdot  \mathbb{I}_{\mbox{bathroom=4}}(i)+\widehat{\beta}_{\mbox{open}} \cdot  \mathbb{I}_{\mbox{open}}(i)+interaction \; terms$$
+where
+
+  * the intercept $\widehat{\alpha}$ is the mean house price for the baseline category (the number of bathrooms equals to one);
+  * $\widehat{\beta}_{\mbox{bathroom=x}}$ is the difference in the mean price of houses with x bathrooms (x=2,3,4) relative to the baseline category (the number of bathrooms equals to one); 
+  * $\mathbb{I}_{\mbox{bathroom=x}}(i)$ is an indicator function such that
+
+    $$\mathbb{I}_{\mbox{bathroom=x}}(i)=\left\{
+                \begin{array}{ll}
+                  1 ~~~ if \; the \; i \mbox{th observation has x bathrooms}(x=2,3,4)\\
+                  0 ~~~ \mbox{Otherwise}.\\
+                \end{array}
+              \right.$$
+              
+              
+Backward stepwise regression selection based on AIC is used for reducing the full model terms and obtaining the final model.The final model is given as follows:
+```{r eval=TRUE, echo=FALSE, message=FALSE, warning=FALSE}
+full.model <- lm(Price ~ Bathrooms * Parking, data = house)
+# stepAIC(full.model)
+final.model <- lm(Price ~ Bathrooms + Parking, data = house)
+Coefs <- round(coef(final.model), 3)
+```
+
+$$\widehat{\mbox{Price}} = \widehat{\alpha} + \widehat{\beta}_{\mbox{bathroom=2}} \cdot  \mathbb{I}_{\mbox{bathroom=2}}(i)+\widehat{\beta}_{\mbox{bathroom=3}} \cdot  \mathbb{I}_{\mbox{bathroom=3}}(i)+$$
+$$\widehat{\beta}_{\mbox{bathroom=4}} \cdot  \mathbb{I}_{\mbox{bathroom=4}}(i)+\widehat{\beta}_{\mbox{open}} \cdot  \mathbb{I}_{\mbox{open}}(i)$$
+
+Table \ref{tab:reg} displays the estimated intercept and slope parameters from the final model. 
+```{r, echo = FALSE, eval = TRUE, warning = FALSE, message = FALSE}
+get_regression_table(final.model) %>%
+  kable(caption = '\\label{tab:reg} Estimates of the regression coefficients from the final model.',
+        booktabs = TRUE) %>%
+  kable_styling(latex_options = 'HOLD_position')
+```
+Hence, from Table \ref{tab:reg} we obtain the regression models for houses with covered parking and houses with open parking: 
+
+$$\widehat{\mbox{Price}}_{\mbox{Covered}} = `r Coefs[1]` + `r Coefs[2]` \cdot \mathbb{I}_{\mbox{bathroom=2}}(i) + $$
+$$`r Coefs[3]` \cdot \mathbb{I}_{\mbox{bathroom=3}}(i) +`r Coefs[4]` \cdot \mathbb{I}_{\mbox{bathroom=4}}(i)$$ 
+
+$$\widehat{\mbox{Price}}_{\mbox{Open}} = `r Coefs[1] + Coefs[5]` + `r Coefs[2]` \cdot \mathbb{I}_{\mbox{bathroom=2}}(i)+ $$
+$$`r Coefs[3]` \cdot \mathbb{I}_{\mbox{bathroom=3}}(i) + `r Coefs[4]` \cdot \mathbb{I}_{\mbox{bathroom=4}}(i)$$
+
+Firstly, for the price of houses with covered parking: If the number of bathrooms is one,the price would be `r Coefs[1]` pounds; If the number of bathrooms is two,the price would be `r Coefs[1] + Coefs[2]` pounds; If the number of bathrooms is three,the price would be `r Coefs[1] + Coefs[3]` pounds; If the number of bathrooms is four,then the price would be `r Coefs[1] + Coefs[4]` pounds.
+
+Then, for the price of houses with open parking: If the number of bathrooms is one,the price would be `r Coefs[1] + Coefs[5]` pounds; If the number of bathrooms is two,the price would be `r Coefs[1] + Coefs[5] + Coefs[2]` pounds; If the number of bathrooms is three,the price would be `r Coefs[1] + Coefs[5] + Coefs[3]` pounds; If the number of bathrooms is four,then the price would be `r Coefs[1] + Coefs[5] + Coefs[4]` pounds.
+
+After interpreting the model regression results, assumptions checking are shown in Figure \ref{fig:resids} and Figure \ref{fig:residhist}.
+
+Figure \ref{fig:resids} displays the scatterplots of the residuals against bathrooms(left) and the fitted values (right) by type of parking. From the scatterplots, we see that there is approximately an even spread of the residuals above and below the zero line for all numbers of bathrooms and fitted values after ignoring the outliers,hence our assumption that the residuals have mean zero appears valid. However,the assumption that the residuals have constant variance across all levels of the fitted values seems to be not valid.
+
+```{r, echo = FALSE, eval = TRUE, warning = FALSE, message = FALSE}
+regression.points <- get_regression_points(final.model)
+```
+
+```{r, echo = FALSE, eval = TRUE, fig.width = 13,fig.height=5,fig.align = "center", warning = FALSE, fig.cap = "\\label{fig:resids}Scatterplots of the residuals against Bathrooms(left) and the fitted values (right) by parking.", fig.pos = 'H'}
+p1 <- ggplot(regression.points, aes(x = Bathrooms, y = residual)) +
+      geom_point() +
+      labs(x = "Bathrooms", y = "Residual") +
+      geom_hline(yintercept = 0, col = "blue", size = 1) +
+      facet_wrap(~ Parking) +
+      theme(aspect.ratio = 1)
+
+p2 <- ggplot(regression.points, aes(x =Price_hat, y = residual)) +
+      geom_point() +
+      labs(x = "Fitted values", y = "Residual") +
+      geom_hline(yintercept = 0, col = "blue", size = 1) +
+      facet_wrap(~ Parking) +
+      theme(aspect.ratio = 1)
+
+grid.arrange(p1, p2, ncol = 2)
+```
+
+Figure \ref{fig:residhist} shows the histogram of the residuals by type of parking.The histogram is relatively not bell-shaped and doesn't centre around zero. Hence, the assumption of normally distributed errors doesn't appear to hold for the fitted regression model.
+```{r, echo = FALSE, eval = TRUE, out.width = '62%', fig.align = "center", warning = FALSE, fig.cap = "\\label{fig:residhist} Histogram of the residuals by type of parking.", message = FALSE, fig.pos = "H"}
+ggplot(regression.points, aes(x = residual)) +
+      geom_histogram(color = "white") +
+      labs(x = "Residual") +
+      facet_wrap(~ Parking) +
+      theme(aspect.ratio = 1)
+```
+
+
+## Conclusions {#sec:con}
+
+The relationship between house price and the number of bathrooms is positive which indicates that the house price will increase with the number of bathrooms.Further more, we find that the relationship between house price and the number of the bathrooms does not differ by type of parking since the interaction terms in the full model is not significant and will be removed.
+
+In conclusion, the house price has a positive trend with the number of bathrooms and the type of parking would not make a change to this relationship. However, the price of houses with covered parking is greater than the price of houses with open parking commonly speaking.
+
+# Further Question 1
+
+```{r include=FALSE}
+grocery<- read_csv("GroceryPromotion.csv")
+grocery$Promotion<-as.factor(grocery$Promotion)
+```
+
+## (a)
+```{r, echo = TRUE}
+log.model <- glm(Promotion ~ Sales, data = grocery, family = binomial(link = "logit"))
+log.model %>%
+  summary()
+```
+## (b)
+
+```{r, echo = TRUE}
+mod.coefs <- log.model %>%
+              summary() %>%
+              coef()
+
+odds.lower <- exp(mod.coefs["Sales", "Estimate"]
+                    - 1.96 * mod.coefs["Sales", "Std. Error"])
+odds.lower
+```
+
+```{r, echo = TRUE}
+odds.upper <- exp(mod.coefs["Sales", "Estimate"] 
+                    + 1.96 * mod.coefs["Sales", "Std. Error"])
+odds.upper
+```  
+The odds of an item being on promotion increase by between 0.12% and 0.13% for every 1 number increase in Sales.
+
+## (c)
+
+```{r echo=TRUE}
+exp(mod.coefs["(Intercept)", "Estimate"] + mod.coefs["Sales", "Estimate"] * 2100)
+```
+The odds of an item being on promotion given the sales of 2100 are 12% greater than not being on promotion.
+
+
+# Further Question 2
+
+## (a)
+
+```{r echo=TRUE}
+Xt<-matrix(0,nrow=100,ncol=100)
+for(i in 1:100){
+  zt<-rnorm(100, mean = 0, sd = 1)
+  Xt[i,]<-cumsum(zt)
+}
+```
+
+## (b)
+
+```{r echo=TRUE}
+t<-1:100
+plot(t,Xt[1,],type="l",ylab="Xt",ylim=c(-30,30),col="blue")
+
+for(i in 2:100){
+  lines(t,Xt[i,],col="blue")
+}
+abline(h=sum(Xt)/10000,lwd=2,col="black")
+```
+From the plot, we are able to find that the variance of each random walk process would increase as length t becomes larger.However,the overall mean of the 100 random walk processes keeps around 0.
+
+
+
+
+
+
+
+
+
+

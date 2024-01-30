@@ -1,0 +1,238 @@
+---
+title: "Class Test 1 Marking Scheme"
+output:
+  pdf_document:
+    latex_engine: xelatex
+    number_sections: no
+  html_document:
+    df_print: paged
+fig_caption: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, comment = NA)
+```
+
+```{r, eval = TRUE, warning = FALSE, message = FALSE}
+library(ggplot2)
+library(dplyr)
+library(moderndive)
+library(skimr)
+library(kableExtra)
+library(gridExtra)
+library(MASS)
+library(readr)
+library(tidyr)
+```
+
+```{r data, echo = FALSE, eval = TRUE, warning = FALSE, message = FALSE}
+PGA <- read_csv("PGA2008.csv")
+```
+
+Successful upload of `.pdf` file.
+
+\begin{flushright}2 MARKS\end{flushright}
+
+# Report
+
+## Introduction {#sec:intro}
+
+Introduction to the data being analysed and to the question of interest. No marks for copying the data description as given. 1 mark removed if the document title has not been changed.
+
+\begin{flushright}2 MARKS\end{flushright}
+
+## Exploratory data analysis {#sec:eda}
+
+Summary statistics on driving accuracy and distance with appropriate comments. One mark removed if the output is simply 'copy-pasted' from R.
+
+\begin{flushright}3 MARKS\end{flushright}
+
+```{r, eval = TRUE}
+my_skim <- skim_with(numeric = sfl(hist = NULL))
+my_skim(PGA)  %>%
+  dplyr::select(-skim_type) %>%
+  kable(col.names = c("Variable", "Missing", "Complete", "Mean", "SD", "Min.", "1st Q.", "Median",
+                        "3rd Q.", "Max."),
+        caption = '\\label{tab:summary} Summary statistics on driving accuracy and distance.',
+        booktabs = TRUE, format = "latex", digits = 2) %>%
+  kable_styling(font_size = 10, latex_options = "hold_position")
+```
+
+```{r cor, echo = FALSE, eval = FALSE}
+PGA %>%
+  get_correlation(formula = Accuracy ~ Distance)
+```
+
+Scatterplot of drive accuracy against distance. One mark removed if the plot is not appropriately labelled, and axis labels not adjusted accordingly.
+
+\begin{flushright}2 MARKS\end{flushright}
+
+The regression line can be superimposed here or within the formal data analysis section.
+
+\begin{flushright}1 MARK\end{flushright}
+
+```{r scatplot, echo = FALSE, eval = TRUE, out.width = '68%', fig.align = "center", warning = FALSE, fig.cap = "\\label{fig:scat} Relationship between driving accuracy and distance. The best-fitting line has been superimposed.", fig.pos = 'H', message = FALSE}
+ggplot(PGA, aes(x = Distance, y = Accuracy)) +
+  geom_point() +
+  labs(x = "Distance (yards)", y = "Accuracy (%)",
+       title = "Relationship between drive distance and accuracy in the PGA 2008") +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+Comments on the scatterplot related to the question of interest. 
+
+\begin{flushright}2 MARKS\end{flushright}
+
+## Formal data analysis {#sec:fda}
+
+State the linear regression model being fitted. The linear regression model that will be fitted to the data is as follows:
+
+$$y_i = \alpha + \beta x_i + \epsilon_i, ~~~~ \epsilon_i \sim N(0, \sigma^2),$$
+
+where $y_i$ and $x_i$ denote the **accuracy** and **distance** of the $i^{th}$ golfer, respectively. The intercept is denoted by $\alpha$, while the slope is given by $\beta$. The $i^{th}$ random error component is denoted by $\epsilon_i$ and are normally distributed with mean zero and variance $\sigma^2$.
+
+\begin{flushright}1 MARK\end{flushright}
+
+```{r coefs, echo = FALSE, eval = TRUE, warning = FALSE, message = FALSE}
+model <- lm(Accuracy ~ Distance, data = PGA)
+Coefs <- round(coef(model), 3)
+```
+
+Regression model output. One mark removed if the regression output is simply 'copy-pasted' from R.
+
+\begin{flushright}2 MARKS\end{flushright}
+
+```{r regtable, echo = FALSE, eval = TRUE, warning = FALSE, message = FALSE}
+get_regression_table(model)[, 1:2] %>%
+  kable(caption = '\\label{tab:reg} Estimates of the intercept and slope from the fitted linear regression model.',
+        booktabs = TRUE) %>%
+  kable_styling(latex_options = 'HOLD_position')
+```
+
+Appropriate comments on the regression coefficients and the relationship between drive accuracy and distance.
+
+\begin{flushright}2 MARKS\end{flushright}
+
+```{r regpoints, echo = FALSE, eval = TRUE, warning = FALSE, message = FALSE}
+regression.points <- get_regression_points(model)
+```
+
+Plots for checking model assumptions. One mark removed if not properly labelled. 
+
+\begin{flushright}3 MARKS\end{flushright}
+
+```{r residplots, echo = FALSE, eval = TRUE, fig.width = 13, fig.align = "center", warning = FALSE, fig.cap = "\\label{fig:resids} Scatterplots of the residuals against distance (left) and the fitted values (right).", fig.pos = 'H'}
+p1 <- ggplot(regression.points, aes(x = Distance, y = residual)) +
+      geom_point() +
+      labs(x = "Drive distance (in yards)", y = "Residual") +
+      geom_hline(yintercept = 0, col = "blue", size = 1) 
+
+p2 <- ggplot(regression.points, aes(x = Accuracy_hat, y = residual)) +
+      geom_point() +
+      labs(x = "Fitted values", y = "Residual") +
+      geom_hline(yintercept = 0, col = "blue", size = 1) 
+
+grid.arrange(p1, p2, ncol = 2)
+```
+
+```{r residplots2, echo = FALSE, eval = TRUE, out.width = '58%', fig.align = "center", warning = FALSE, fig.cap = "\\label{fig:residhist} Histogram of the residuals.", message = FALSE, fig.pos = "H"}
+ggplot(regression.points, aes(x = residual)) +
+      geom_histogram(color = "white") +
+      labs(x = "Residual") 
+```
+
+Appropriate comments on the model assumptions. 
+
+\begin{flushright}3 MARKS\end{flushright}
+
+## Conclusions {#sec:con}
+
+Overall conclusions with an answer to the question of interest. 
+
+\begin{flushright}2 MARKS\end{flushright}
+
+General report layout. This should include figure and table captions, with marks not awarded if these are
+not used. One mark removed if hyperlinks for sections and Figures not implemented (Tables are allowed no hyperlinks). 
+
+\begin{flushright}2 MARKS\end{flushright}
+
+***
+\begin{flushright}Total: 25 MARKS\end{flushright}
+
+# Further Question 1
+
+```{r, warning=FALSE, message=FALSE, echo = TRUE}
+q1data <- read_csv("EPL.csv")
+```
+
+Modify the data into `tidy` format and set the categorical variable to type `factor` using:
+
+```{r, echo = TRUE}
+q1datatidy <- gather(data = q1data,
+                    key = Year,
+                    value = Points,
+                    - Team)
+q1datatidy$Team <- as.factor(q1datatidy$Team)
+```
+
+2 marks are awarded for converting to the `tidy` format, while 1 mark is awarded for converting `Team` to a factor.
+
+\begin{flushright}3 MARKS\end{flushright}
+
+To graphically compare the point distributions of the six teams we produce boxplots.
+
+```{r, echo = TRUE, fig.cap = "\\label{fig:box1} Distribtuion of the total points for each team.", fig.pos = "H", out.width = '60%', fig.align = "center"}
+ggplot(data = q1datatidy, aes(y = Points, x = Team)) +
+         geom_boxplot() +
+         scale_x_discrete(labels = c("Arsenal", "Chelsea", "Everton", "Liverpool",
+                                      "Man United", "Spurs"))
+```
+
+2 marks are awarded for producing the appropriately labelled boxplot.
+
+2 marks are awarded for appropriate comments relating to the data and boxplots.
+
+\begin{flushright}4 MARKS\end{flushright}
+
+***
+\begin{flushright}Total: 7 MARKS\end{flushright}
+
+# Further Question 2
+
+```{r, echo = TRUE, eval = TRUE, warning = FALSE}
+set.seed(10)
+n_sim <- 100
+corr <- -0.65
+mu <- c(12, 19)
+VarX <- 2
+VarY <- 1
+sqrt.var <- sqrt(prod(c(VarX, VarY)))
+sqrt.var.mat <- matrix(c(1, sqrt.var, sqrt.var, 1), 2, 2)
+sigma <- matrix(c(VarX, corr, corr, VarY), 2, 2) * sqrt.var.mat
+sim <- mvrnorm(n_sim, mu = mu, Sigma = sigma)
+colnames(sim) <- c("X", "Y")
+```
+
+2 marks are awarded for correctly identifying the number of observations, the means of $X$ and $Y$, and the covariance matrix. An additional 2 marks are awarded for the correct use of the `mvrnorm()` function.
+
+\begin{flushright}4 MARKS\end{flushright}
+
+```{r, echo = TRUE, eval = TRUE, warning = FALSE, out.width = '60%', fig.align = "center", fig.cap = "Scatterplot of Y against X.", fig.pos = "H"}
+sim <- as.data.frame(sim)
+ggplot(data = sim, aes(x = X, y = Y)) +
+  geom_point() +
+  labs(x = "X", y = "Y")
+
+sim %>%
+  summarize(cor(X, Y))
+```
+
+1 mark for producing the scatterplot and comments, and 1 mark for obtaining the correlation coefficient.
+
+\begin{flushright}2 MARKS\end{flushright}
+
+***
+\begin{flushright}Total: 6 MARKS\end{flushright}
+
+***
+\begin{flushright}Total: 40 MARKS\end{flushright}

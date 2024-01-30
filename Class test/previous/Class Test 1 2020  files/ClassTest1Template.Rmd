@@ -1,0 +1,47 @@
+---
+title: "Data Analysis Class Test 1"
+author: "STUDENT NUMBER GOES HERE"
+output:
+  pdf_document:
+          latex_engine: xelatex
+          number_sections: yes
+fig_caption: yes
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE, comment = NA, message = FALSE)
+```
+
+```{r, eval = TRUE, warning = FALSE, message = FALSE}
+library(ggplot2)
+library(dplyr)
+library(moderndive)
+library(skimr)
+library(kableExtra)
+library(gridExtra)
+library(MASS)
+library(readr)
+library(tidyr)
+```
+
+<!-- Update the title of the report and the author of the document appropriately -->
+
+# TITLE OF REPORT GOES HERE
+
+<!-- Read in the .csv file for the report section. -->
+
+## Introduction {#sec:intro}
+
+## Exploratory Analysis {#sec:EA}
+
+## Formal Analysis {#sec:FA}
+
+## Conclusions {#sec:con}
+
+
+# Further Question 1
+
+<!-- Read in the .csv file for Further Question 1. -->
+
+# Further Question 2
+

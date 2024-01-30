@@ -1,0 +1,215 @@
+---
+title: "Model parameter inference and model selection"
+author: "steven tjt"
+output:
+  pdf_document:
+          latex_engine: xelatex
+          number_sections: yes
+fig_caption: yes
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE, comment = NA, message = FALSE)
+```
+
+```{r, eval = TRUE, warning = FALSE, message = FALSE}
+library(dplyr)
+library(ggplot2)
+library(janitor)
+library(moderndive)
+library(infer)
+library(broom)
+library(tidyr)
+```
+
+# Confidence intervals for regression parameters
+
+## Bootstrap Confidence Intervals for the slope β in Simple Linear Regression(SLR) {#sec:Bootstrap}
+
+
+```{r echo=TRUE}
+slr.model <- lm(score ~ age, data = evals)
+coeff<-slr.model %>%
+  coef()
+
+coeff
+```
+
+The point estimate of the slope parameter here is β hat = -0.006. The following code estimates the sampling distribution of b β via the bootstrap method.
+
+```{r echo=TRUE}
+bootstrap_beta_distn <- evals %>%
+  specify(score ~ age) %>%
+  generate(reps = 1000, type = "bootstrap") %>%
+  calculate(stat = "slope")
+
+bootstrap_beta_distn %>%
+  visualize()
+```
+Now we can use the get_ci function to calculate a 95% confidence interval. We can do this in two different ways. Remember that these denote a range of plausible values for an unknown true population slope parameter regressing teaching score on age.
+
+```{r echo=TRUE}
+percentile_beta_ci <- bootstrap_beta_distn %>%
+  get_ci(level = 0.95, type = "percentile")
+percentile_beta_ci
+```
+
+```{r echo=TRUE}
+se_beta_ci <- bootstrap_beta_distn %>%
+  get_ci(level = 0.95, type = "se", point_estimate = coeff[2])
+se_beta_ci
+```
+
+Using the 2.5% and 97.5% percentiles of the simulated bootstrap sampling distribution the 95% confidence interval is (-0.011, -0.001) and the 95% confidence interval using the standard deviation of the sampling distribution (i.e. estimated standard error of βb) is (-0.011, -0.001). With the bootstrap distribution being close to symmetric, it makes sense that the two resulting confidence intervals are similar.
+
+## Confidence Intervals for the parameters in Multiple Regression {#sec:CI}
+
+Let’s continue with the teaching evaluations data by fitting the multiple regression model with one numerical and one categorical explanatory variable that we first saw in Week 7. In this model:
+* y: response variable of instructor evaluation score
+* x1: numerical explanatory variable of age
+  x2: categorical explanatory variable of gender
+  
+```{r echo=TRUE}
+evals_multiple <- evals %>%
+  select(score, gender, age)
+
+evals_multiple
+```
+
+1.Model 1: Parallel lines model (no interaction term) - both male and female professors have the same slope describing the associated effect of age on teaching score
+  
+
+```{r echo=TRUE}
+ggplot(evals_multiple, aes(x = age, y = score, color = gender)) +
+  geom_jitter() +
+  labs(x = "Age", y = "Teaching Score", color = "Gender") +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+Model 2: Interaction model - allowing for male and female professors to have different slopes describing the associated effect of age on teaching score
+```{r include=FALSE}
+par.model <- lm(score ~ age + gender, data = evals_multiple)
+get_regression_table(par.model)
+```
+
+```{r echo=TRUE}
+
+# Now, let’s superimpose our parallel regression lines onto the scatterplot of teaching score against age:
+coeff <- par.model %>%
+  coef() %>%
+  as.numeric()
+
+slopes <- evals_multiple %>%
+  group_by(gender) %>%
+  summarise(min = min(age), max = max(age)) %>%
+  mutate(intercept = coeff[1]) %>%
+  mutate(intercept = ifelse(gender == "male", intercept + coeff[3], intercept)) %>%
+  gather(point, age, -c(gender, intercept)) %>%
+  mutate(y_hat = intercept + age * coeff[2])
+
+ggplot(evals_multiple, aes(x = age, y = score, col = gender)) +
+  geom_jitter() +
+  labs(x = "Age", y = "Teaching Score", color = "Gender") +
+  geom_line(data = slopes, aes(y = y_hat), size = 1)
+
+```
+
+Refresher: Regression tables
+
+
+Let’s also recall the regression models. First, the regression model with no interaction effect: note the use of + in the formula.
+
+```{r echo=TRUE}
+par.model <- lm(score ~ age + gender, data = evals_multiple)
+
+get_regression_table(par.model) %>%
+  knitr::kable(
+                digits = 3,
+                caption = "Model 1: Regression model with no interaction effect included.",
+                booktabs = TRUE
+     )
+```
+
+
+Second, the regression model with an interaction effect: note the use of * in the formula.
+
+```{r echo=TRUE}
+par.model <- lm(score ~ age*gender, data = evals_multiple)
+
+get_regression_table(par.model) %>%
+  knitr::kable(
+                digits = 3,
+                caption = "Model 2: Regression model with interaction effect included.",
+                booktabs = TRUE
+     )
+```
+
+
+# Inference using Confidence Intervals 
+
+Let’s use the confidence interval based on theoretical results for the slope parameter in the SLR model applied to the teacher evaluation scores with age as the the single explanatory variable and the instructors’ evaluation scores as the outcome variable.
+
+```{r echo=TRUE}
+get_regression_table(slr.model) %>%
+  knitr::kable(
+                digits = 3,
+                caption = "Estimates from the SLR model of `score` on `age`.",
+                booktabs = TRUE
+              )
+```
+
+## Multiple regression 
+
+Consider, again, the fitted interaction model for score with age and gender as the two explanatory variables.
+
+```{r echo=TRUE}
+int.model <- lm(score ~ age * gender, data = evals_multiple)
+get_regression_table(int.model)
+```
+
+# Variable selection using confidence intervals
+
+Recall that as well as age and gender, there is also a potential explanatory variable bty_avg in the evals data, i.e. the numerical variable of the average beauty score from a panel of six students’ scores between 1 and 10. We can fit the multiple regression model with the two continuous explanatory variables age and bty_avg as follows:
+
+```{r echo=TRUE}
+mlr.model <- lm(score ~ age + bty_avg, data = evals)
+mlr.model
+```
+
+# Model comparisons using objective criteria
+
+To illustrate this, let’s return to the evals data and the MLR on the teaching evaluation score score with the two continuous explanatory variables age and bty_avg and compare this with the SLR model with just bty_avg. To access these measures for model comparisons we can use the glance function in the broom package
+
+```{r echo=TRUE}
+model.comp.values.slr.age <- glance(lm(score ~ age, data = evals))
+model.comp.values.slr.age
+```
+```{r echo=TRUE}
+model.comp.values.slr.bty_avg <- glance(lm(score ~ bty_avg, data = evals))
+model.comp.values.slr.bty_avg
+```
+
+```{r echo=TRUE}
+model.comp.values.mlr <- glance(lm(score ~ age + bty_avg, data = evals))
+model.comp.values.mlr
+```
+
+Note that R^2_adj , AIC and BIC are contained in columns 2, 9 and 10 respectively. To access just these values and combine them in a single table we use:
+```{r echo=TRUE}
+Models <- c('SLR(age)','SLR(bty_avg)','MLR')
+bind_rows(model.comp.values.slr.age, model.comp.values.slr.bty_avg,
+          model.comp.values.mlr, .id = "Model") %>%
+          select(Model, adj.r.squared, AIC, BIC) %>%
+          mutate(Model = Models) %>%
+          knitr::kable(
+                  digits = 2,
+                  caption = "Model comparison values for different models.", 
+               )
+```
+
+
+
+
+
+
+

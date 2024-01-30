@@ -1,0 +1,109 @@
+---
+title: "report"
+author: "Data Analysis"
+output: 
+  pdf_document:
+    latex_engine: xelatex
+    number_sections: yes
+fig_caption: yes
+---
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, comment = NA, message = FALSE, warning = FALSE)
+```
+
+# Introduction{#sec:intro}
+This is an example
+
+## first{#sec:sub1}
+Well done,bro
+
+## second{#sec:sub2}
+keep going 
+
+
+# Code chunk{#sec:chunk}
+
+
+## show output only{#sec:sub11}
+```{r echo=FALSE}
+print(1:5)
+```
+
+## show code and output{#sec:sub22}
+```{r echo=TRUE}
+print(6:10)
+```
+
+## show nothing(run code){#sec:sub33}
+```{r include=FALSE}
+print(6:10)
+```
+
+## show nothing(don't run code){#sec:sub44}
+```{r eval=FALSE, include=FALSE}
+print(7:19)
+```
+
+# Inline code{#sec:Inline}
+
+`r sin(pi/2)` 
+
+
+`r 2+2`
+
+
+
+# Table{#sec:table}
+
+```{r}
+x <- 1:10
+y <- x^2
+lmr <- lm(y ~ x)
+co <- summary(lmr)$coefficients
+knitr::kable(co)
+```
+
+```{r table}
+knitr::kable(head(iris,n=5),caption='\\label{tab:iris} The first 5 rows')
+```
+
+# Mathematics{#sec:maths}
+
+$$y_i = \alpha + \beta x_i + \epsilon_i, ~~~~ \epsilon_i \sim N(0, \sigma^2),$$
+
+
+$$y_i = \alpha + \beta_{\mbox{Male}} \cdot \mathbb{I}_{\mbox{Male}}(x),$$
+
+
+# Figures{#sec:figures}
+```{r include=FALSE}
+
+library(ggplot2)
+library(nycflights13)
+```
+
+Figure \ref{fig:scat} displays a scatterplot of the teaching score against beauty score. Here, there appears to be a positive relationship between teaching and beauty scores. Hence, teaching score tends to increase with beauty score. However, as seen from Figure \ref{fig:scat} and the observed correlation coefficient , it is only a weakly positive relationship. A linear regression model will now be fitted to assess the relationship between teaching and beauty scores.
+\newpage
+
+```{r eval=TRUE,fig.align = "center", fig.cap = "\\label{fig:scat} Relationship between teaching and beauty scores. The best-fitting line has been superimposed.",fig.pos="h"}
+Alaska<-flights[flights$carrier=="AS",]
+ggplot(data=Alaska,mapping=aes(x=dep_delay,y=arr_delay))+
+  geom_point()+
+  labs(x="Depature delay(minutes)",y="Arrival delay(minutes)",title="Alaska Airlines flights leaving NYC in 2013")
+```
+
+
+
+## inside code{#sec:sub111}
+```{r eval=TRUE, fig.align="center", fig.cap="try", fig.width=6, out.width='80%',fig.pos="h"}
+x=1:100
+y=0.5*x
+plot(x,y)
+```
+
+
+
+
+
+
+

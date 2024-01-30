@@ -1,0 +1,287 @@
+---
+title: "Class Test 2 Marking Scheme"
+output:
+  pdf_document:
+          latex_engine: xelatex
+          number_sections: no
+fig_caption: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, comment = NA, message = FALSE)
+```
+
+```{r, eval = TRUE, warning = FALSE, message = FALSE}
+library(ggplot2)
+library(dplyr)
+library(moderndive)
+library(skimr)
+library(kableExtra)
+library(gridExtra)
+library(MASS)
+library(knitr)
+library(datasets)
+library(broom)
+library(infer)
+library(janitor)
+library(tidyr)
+library(ISLR)
+library(readr)
+library(stats)
+library(sjPlot)
+```
+
+```{r, eval = TRUE, warning = FALSE}
+Ideal <- read_csv("Ideal.csv")
+Ideal$Gender <- as.factor(Ideal$Gender)
+```
+```{r}
+any(is.na(Ideal))
+```
+
+Successful upload of `.pdf` file.
+
+\begin{flushright}2 MARKS\end{flushright}
+
+# Report
+
+## Introduction {#sec:intro}
+
+Introduction to the data being analysed and to the question of interest. No marks for copying the data description as given. 1 mark removed if the document title has not been changed.
+
+\begin{flushright}2 MARKS\end{flushright}
+
+## Exploratory data analysis {#sec:eda}
+
+Need to begin by filtering out the missing values (NA's). Summary statistics of the data with appropriate comments. 1 mark removed if the output is simply 'copy-pasted' from R.
+
+\begin{flushright}3 MARKS\end{flushright}
+
+```{r, echo = FALSE}
+Ideal <- Ideal %>%
+          filter(!(Height == 'NA' | Ideal.Height == 'NA'))
+```
+
+```{r, echo = FALSE, eval = TRUE, warning = FALSE, message = FALSE}
+Ideal_group<-Ideal%>%
+  group_by(Gender)
+
+Ideal_skim<-skim_with(numeric = list(hist = NULL, n_missing = NULL, complete_rate = NULL, n = NULL))
+
+Ideal_skim(Ideal_group)%>%
+  dplyr::select(-skim_type,-n_missing,-complete_rate,-numeric.hist)%>%
+  kable(col.names = c("Gender", "Variable","Mean", "SD", "Minimum", "1st quartile",                              "Median","3rd quartile", "Maximum"),
+        caption = '\\label{tab:summary} Mean, median and standard deviation (sd) ideal partner height and height                    by gender.',
+        booktabs = TRUE,digits=2,format = "latex", linesep = "") %>%
+  kable_styling(font_size = 10, latex_options = "hold_position") 
+```
+
+```{r, echo = FALSE, eval = TRUE, warning = FALSE, message = FALSE}
+Cors <- Ideal %>%
+        group_by(Gender) %>%
+        summarize('Correlation' = cor(Ideal.Height, Height))
+```
+
+```{r, echo = FALSE, eval = TRUE, warning = FALSE, message = FALSE}
+Cors %>%
+  kable(caption = '\\label{tab:cor} Correlation between partner height and height by gender.', booktabs = TRUE, digits = 3) %>%
+  kable_styling(font_size = 9, latex_options = "hold_position")
+```
+
+Scatterplot of ideal partner height against height by gender. 1 mark removed if the plot is not appropriately labelled, and axis labels not adjusted accordingly.
+
+\begin{flushright}2 MARKS\end{flushright}
+
+```{r, echo = FALSE, eval = TRUE, out.width = '60%', fig.align = "center", warning = FALSE, fig.cap = "\\label{fig:scat} Relationship between ideal partner height and height by gender.", fig.pos = 'H'}
+ggplot(Ideal, aes(x = Height, y = Ideal.Height, color = Gender)) +
+  geom_point() +
+  labs(x = "Height (cm)", y = "Ideal Partner Height (cm)",
+        color = "Gender", title = "")
+```
+
+Comments on the scatterplot related to the question of interest. 
+
+\begin{flushright}2 MARKS\end{flushright}
+
+## Formal data analysis {#sec:fda}
+
+State the multiple linear regression model being fitted. The 'full' model should contain an interaction term between height and gender.
+
+\begin{flushright}1 MARK\end{flushright}
+
+```{r, echo = FALSE, eval = TRUE, warning = FALSE, message = FALSE}
+full.model <- lm(Ideal.Height ~ Height * Gender, data = Ideal)
+# stepAIC(full.model)
+final.model <- lm(Ideal.Height ~ Height + Gender, data = Ideal)
+Coefs <- round(coef(final.model), 3)
+```
+
+Stepwise regression (forward/backward selection based on AIC), or some other valid method (examining $p$-values), for reducing the 'full' model should be implemented to obtain the 'final' model. 
+
+\begin{flushright}1 MARK\end{flushright}
+
+Regression model output. 1 mark removed if the regression output is simply 'copy-pasted' from R.
+
+\begin{flushright}1 MARK\end{flushright}
+
+```{r, echo = FALSE, eval = TRUE, warning = FALSE, message = FALSE}
+get_regression_table(final.model) %>%
+  kable(caption = '\\label{tab:reg} Estimates of the regression coefficients from the final model.',
+        booktabs = TRUE) %>%
+  kable_styling(latex_options = 'HOLD_position')
+```
+
+Hence, from Table \ref{tab:reg} we obtain the following regression lines: 
+
+\begin{align}
+\widehat{\mbox{Ideal Height}}_{\mbox{man}} &= `r Coefs[1]` + `r Coefs[2]` \cdot \mbox{Height} \\
+\widehat{\mbox{Ideal Height}}_{\mbox{woman}} &= `r Coefs[1] + Coefs[3]` + `r Coefs[2]` \cdot \mbox{Height}
+\end{align}
+
+Appropriate comments on the regression coefficients and the relationship between the response and explanatory variables.
+
+\begin{flushright}2 MARKS\end{flushright}
+
+The regression line(s) can be superimposed in the exploratory analysis section or here in the formal data analysis section. However, if different regression lines are subsequently fitted after the modelling process then the corresponding regression lines will need to superimposed again.
+
+\begin{flushright}1 MARK\end{flushright}
+
+```{r, echo = FALSE, eval = TRUE, out.width = '60%', fig.align = "center", warning = FALSE, fig.cap = "Relationship between ideal partner height and height by gender. The parallel regression lines have been superimposed.", fig.pos = "H"}
+coeff <- final.model %>%
+          coef() %>%
+          as.numeric()
+
+slopes <- Ideal %>%
+          group_by(Gender) %>%
+          summarise(min = min(Height), max = max(Height)) %>%
+          mutate(intercept = coeff[1]) %>%
+          mutate(intercept = ifelse(Gender == "Woman", intercept + coeff[3], intercept)) %>%
+          gather(point, Height, -c(Gender, intercept)) %>%
+          mutate(y_hat = intercept + Height * coeff[2])
+
+ggplot(Ideal, aes(x = Height, y = Ideal.Height, color = Gender)) +
+      geom_point() +
+      labs(x = "Height (cm)", y = "Ideal partner height (cm)", color = "Gender") +
+      geom_line(data = slopes, aes(y = y_hat), size = 1)
+```
+
+```{r, echo = FALSE, eval = TRUE, warning = FALSE, message = FALSE}
+regression.points <- get_regression_points(final.model)
+```
+
+Plots for checking model assumptions. 1 mark removed if not properly labelled. 
+
+\begin{flushright}3 MARKS\end{flushright}
+
+```{r, echo = FALSE, eval = TRUE, fig.width = 13, fig.align = "center", warning = FALSE, fig.cap = "\\label{fig:resids} Scatterplots of the residuals against height (left) and the fitted values (right) by gender.", fig.pos = 'H'}
+p1 <- ggplot(regression.points, aes(x = Height, y = residual)) +
+      geom_point() +
+      labs(x = "Height (cm)", y = "Residual") +
+      geom_hline(yintercept = 0, col = "blue", size = 1) +
+      facet_wrap(~ Gender) +
+      theme(aspect.ratio = 1)
+
+p2 <- ggplot(regression.points, aes(x = Ideal.Height_hat, y = residual)) +
+      geom_point() +
+      labs(x = "Fitted values", y = "Residual") +
+      geom_hline(yintercept = 0, col = "blue", size = 1) +
+      facet_wrap(~ Gender) +
+      theme(aspect.ratio = 1)
+
+grid.arrange(p1, p2, ncol = 2)
+```
+
+```{r, echo = FALSE, eval = TRUE, out.width = '62%', fig.align = "center", warning = FALSE, fig.cap = "\\label{fig:residhist} Histogram of the residuals by gender.", message = FALSE, fig.pos = "H"}
+ggplot(regression.points, aes(x = residual)) +
+      geom_histogram(color = "white") +
+      labs(x = "Residual") +
+      facet_wrap(~ Gender) +
+      theme(aspect.ratio = 1)
+```
+
+Appropriate comments on the model assumptions. 
+
+\begin{flushright}3 MARKS\end{flushright}
+
+# Conclusions {#sec:con}
+
+Overall conclusions with an answer to the question of interest. 
+
+\begin{flushright}2 MARKS\end{flushright}
+
+General report layout. This should include figure and table captions, with marks not awarded if these are
+not used. 1 mark removed if hyperlinks for sections and Figures not implemented (Tables are allowed no hyperlinks). 
+
+\begin{flushright}2 MARKS\end{flushright}
+
+***
+\begin{flushright}Total: 25 MARKS\end{flushright}
+
+# Further Question 1
+
+```{r, echo = TRUE}
+log.model <- glm(Gender ~ Height, data = Ideal, family = binomial(link = "logit"))
+log.model %>%
+  summary()
+```
+  
+\begin{flushright}2 MARKS\end{flushright}
+
+```{r, echo = TRUE}
+mod.coefs <- log.model %>%
+              summary() %>%
+              coef()
+
+odds.lower <- exp(mod.coefs["Height", "Estimate"]
+                    - 1.96 * mod.coefs["Height", "Std. Error"])
+odds.lower
+odds.upper <- exp(mod.coefs["Height", "Estimate"] 
+                    + 1.96 * mod.coefs["Height", "Std. Error"])
+odds.upper
+```  
+
+The odds of being female decrease by between `r 100 * round(1-odds.upper, 3)`% and `r 100 * round(1-odds.lower, 3)`% for every 1 cm increase in height.
+
+2 marks for obtaining the confidence interval and 1 mark for the interpretation.  
+  
+\begin{flushright}3 MARKS\end{flushright}
+
+```{r, echo = TRUE}
+exp(mod.coefs["(Intercept)", "Estimate"] + mod.coefs["Height", "Estimate"] * 171)
+```
+  
+The odds of being female given a height of 171 cm are 34% greater than being male.
+  
+1 mark for obtaining the estimate, and 1 mark for the interpretation.
+  
+\begin{flushright}2 MARKS\end{flushright}
+  
+***
+\begin{flushright}Total: 7 MARKS\end{flushright}
+
+
+# Further Question 2
+
+For count data we want to fit a Poisson regression model, with the logarithm as the link function.
+
+\begin{flushright}2 MARKS\end{flushright}
+
+```{r, echo = FALSE}
+bikes <- read_csv("test2.csv")
+```
+
+```{r, echo = TRUE}
+poisson.model <- glm(bikes ~ temp, data = bikes, family = poisson(link = "log"))
+poisson.model %>%
+  summary()
+```
+
+1 mark for using the `glm()` function. 1 mark for correctly identifying `bikes` and `temp` as the response/explanatory variable. 2 marks for correctly identifying the `family` to use in the `glm()` function and for outputting the results of the fitted model. 
+
+\begin{flushright}4 MARKS\end{flushright}
+
+***
+\begin{flushright}Total: 6 MARKS\end{flushright}
+
+***
+\begin{flushright}Total: 40 MARKS\end{flushright}

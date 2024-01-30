@@ -1,0 +1,217 @@
+---
+title: "Data Analysis Class Test 1"
+author: "2700298"
+output:
+  pdf_document:
+          latex_engine: xelatex
+          number_sections: yes
+fig_caption: yes
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE, comment = NA, message = FALSE)
+```
+
+```{r, eval = TRUE, warning = FALSE, message = FALSE}
+library(ggplot2)
+library(dplyr)
+library(moderndive)
+library(skimr)
+library(kableExtra)
+library(gridExtra)
+library(MASS)
+library(readr)
+library(tidyr)
+```
+
+<!-- Update the title of the report and the author of the document appropriately -->
+
+# Report: Gambling among teenagers in Britain
+
+<!-- Read in the .csv file for the report section. -->
+
+```{r, echo = FALSE, eval = TRUE, warning = FALSE, message = FALSE}
+gamble <- read_csv("gambling.csv")
+```
+
+## Introduction {#sec:intro}
+
+The study was conducted into the gambling habits of teenagers living in Britain which included 28 males and 19 females aged 16-19.The respondents were asked how much they spend on gambling in pounds per year.The main purpose of this study is to examine the expenditure of teenagers in Britain on gambling and determine whether there is a difference in spending habits between males and females and try to find the relationship between gambling expenditure and gender by linear model.
+
+Section \ref{sec:EA} consists of an exploratory data analysis of gambling expenditure and explores the potential relationship between gambling expenditure and gender. Section \ref{sec:FA} contains the results from fitting a linear regression model to the data, as well as the assessment of the model assumptions. Concluding remarks are given in Section \ref{sec:con}.
+
+
+## Exploratory Analysis {#sec:EA}
+
+
+```{r echo=FALSE}
+gamble.male<-gamble %>%
+  filter(sex=="Male")
+gamble.female<-gamble %>%
+  filter(sex=="Female")
+```
+
+
+Table \ref{tab:summary} contains summary statistics on the gambling expenditures of the `r nrow(gamble.male)` males and `r nrow(gamble.female)` females aged from 16-19. First, we notice that the missing value for both males and females are 0 which is very good.Secondly,in terms of female respondents,we see that the middle 50% of gambling expenditures lie between `r round(quantile(gamble.female$spent, 0.25), 2)` and `r round(quantile(gamble.female$spent, 0.75), 2)`
+, with an average expenditure of `r round(mean(gamble.female$spent), 2)`. In addition,if we look at male respondents,we could find that the middle 50% of gambling expenditures lie between `r round(quantile(gamble.male$spent, 0.25), 2)` and `r round(quantile(gamble.male$spent, 0.75), 2)`
+, with an average expenditure of `r round(mean(gamble.male$spent), 2)`.What's more,the maximum expenditure for male is `r round(max(gamble.male$spent), 2)` pounds which is much greater than female's expenditure (`r round(max(gamble.female$spent), 2)` pounds) while the minimum expenditure is close between two groups.
+
+
+```{r, echo = FALSE, eval = TRUE, warning = FALSE, message = FALSE,out.width='80%'}
+gamble_group<-gamble%>%
+  group_by(sex)
+
+gamble_skim<-skim_with(numeric=sfl(hist=NULL))
+
+gamble_skim(gamble_group)%>%
+  dplyr::select(-skim_type) %>%
+  kable(col.names = c("Variable", "Sex", "Missing","Complete","Mean", "SD", "Minimum", "1st quartile", "Median", "3rd quartile", "Maximum"),
+  caption = '\\label{tab:summary} Summary statistics on gambling expenditure by sex',booktabs = TRUE, digits = 2) %>%
+  kable_styling(font_size = 9, latex_options = "hold_position")
+```
+
+Then we prefer to draw boxplot of gambling expenditure by sex
+
+```{r, eval = TRUE, out.width = '68%', fig.align = "center", warning = FALSE, fig.cap = "\\label{fig:box} Boxplot of Gambling expenditure by sex", fig.pos = 'H'}
+ggplot(gamble, aes(x = sex, y = spent)) +
+  geom_boxplot() +
+  labs(x = "Sex", y = "Gambling expenditure(pounds)", title = "")
+```
+Figure \ref{fig:box} displays a boxplot of the male's gambling expenditure as well as female's gambling expenditure. Here, There is more variability in male's expenditure than female's expenditure, as seen from box range of two groups,showing that there is a big difference in male's interest in gambling.From Figure \ref{fig:box}, we see that the mean expenditure for male is a little bit higher than female group which indicates that male would spend more money on gambling compared with female generally speaking.Also,there were outliers in both male group and female group which should be ignored. A linear regression model will now be fitted to assess the relationship  between gambling expenditure and gender.
+
+
+
+## Formal Analysis {#sec:FA}
+
+The linear regression model that will be fitted to the data is as follows:
+
+$$\widehat{\mbox{spent}} = \widehat{\alpha} + \widehat{\beta}_{\mbox{Male}} \cdot \mathbb{I}_{\mbox{Male}}(x) $$
+where
+
+  * the intercept $\widehat{\alpha}$ is the mean expenditure for the baseline category (females);
+  * $\widehat{\beta}_{\mbox{Male}}$ is the difference in the mean expenditure of males relative to the baseline category (females); 
+  * $\mathbb{I}_{\mbox{Male}}(x)$ is an indicator function such that
+
+    $$\mathbb{I}_{\mbox{Male}}(x)=\left\{
+                \begin{array}{ll}
+                  1 ~~~ \mbox{if the gender of} ~ x \mbox{th observation is Male},\\
+                  0 ~~~ \mbox{Otherwise}.\\
+                \end{array}
+              \right.$$
+              
+```{r, eval = TRUE, warning = FALSE, message = FALSE}
+model.gamble<- lm(spent ~ sex, data = gamble)
+Coefs.gamble<- round(coef(model.gamble), 3)
+```
+
+Table \ref{tab:reg} displays the estimated intercept and slope parameters of the best-fitting line from the regression model. 
+
+```{r, eval = TRUE, warning = FALSE, message = FALSE}
+get_regression_table(model.gamble)[, 1:2] %>%
+  kable(caption = '\\label{tab:reg} Estimates of the intercept and slope from the fitted linear regression model.',
+        booktabs = TRUE) %>%
+  kable_styling(latex_options = 'HOLD_position')
+```
+Hence, the best-fitting line is given as:
+$$\widehat{\mbox{gambling spent}} = `r Coefs.gamble[1]` + `r Coefs.gamble[2]` \cdot \mathbb{I}_{\mbox{Male}}(x)$$
+That is, the mean gambling expenditure for female is simply equal to the intercept term `r Coefs.gamble[1]`,then the mean gambling expenditure for male is `r Coefs.gamble[1]`+`r Coefs.gamble[2]*1`.
+
+
+
+```{r, eval = TRUE, out.width = '80%',fig.width = 13, fig.align = "center", warning = FALSE,fig.cap = "\\label{fig:resids} Scatterplot of the residuals against sex (left) and a histogram of the residuals (right).", fig.pos = 'H', message = FALSE}
+regression.points <- get_regression_points(model.gamble)
+g1 <- ggplot(regression.points, aes(x = sex, y = residual)) +
+      geom_jitter(width = 0.1) + 
+      labs(x = "Sex", y = "Residual") +
+      geom_hline(yintercept = 0, col = "blue")
+
+g2 <- ggplot(regression.points, aes(x = residual)) +
+      geom_histogram(color = "white") +
+      labs(x = "Residual")
+
+grid.arrange(g1, g2, ncol = 2)
+```
+
+Figure \ref{fig:resids} displays a scatterplot of the residuals against the gender and a histogram of the residuals. From the scatterplot,we see that there is an even spread of the residuals above and below the zero line for both female group and male group after ignoring the outliers existed in each group,and hence our assumption that the residuals have mean zero appears valid. The histogram appears to be slightly right-skewed,however,it appears to be relatively bell-shaped and centred around zero. Hence, the assumption of normally distributed errors appears to hold for the fitted regression model.
+
+
+## Conclusions {#sec:con}
+
+The spending habits between males and females youths living in Britain seem to be quite different.Male youths spend `r round(mean(gamble.male$spent), 2)` pounds on average per year while female youths spend `r round(mean(gamble.female$spent), 2)` pounds on average per year which indicates that male youths are more fond of spending money on gambling.In addition,the relationship between gambling expenditure and gender is 
+$$\widehat{\mbox{gambling expenditure}} = `r Coefs.gamble[1]` + `r Coefs.gamble[2]` \cdot \mathbb{I}_{\mbox{Male}}(x)$$ 
+
+which is observed from the fitted regression model,so the difference between male youths expenditure and female youths expenditure is `r Coefs.gamble[2]` pounds on average per year.
+
+
+
+
+
+# Further Question 1
+
+## (a)
+```{r, echo = TRUE,eval = TRUE, out.width = '80%', fig.align = "center", fig.cap = "\\label{fig:scat} Relationship between X and Y", fig.pos = "H"}
+FQ1<-read_csv("FQ1.csv")
+
+ggplot(data=FQ1,mapping=aes(x=X,y=Y))+
+  geom_point()+
+  geom_jitter(width = 0.1, height = 0.1)+
+  labs(x="X",y="Y")+
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+Figure \ref{fig:scat} clearly shows that there is a positive relationship between X and Y,in order to specifiy how strong the positive correlation is,we could use get_correlation() function to calculate the correlation
+
+```{r, echo = TRUE, eval = TRUE, warning = FALSE, message = FALSE}
+library(moderndive)
+FQ1%>%
+  get_correlation(formula = Y~X)
+```
+The correlation coefficient is around 0.71,so we could say there is a strong positive correlation between X and Y.
+
+
+## (b)
+corr.func() function is written below:
+```{r, echo = TRUE, eval = TRUE, warning = FALSE, message = FALSE}
+corr.func<-function(data){
+  n=nrow(data)
+  a<-data[,1]
+  b<-data[,2]
+  a_mean<-sum(a)/n
+  b_mean<-sum(b)/n
+  result1<-sum((a-a_mean)*(b-b_mean))
+  result2<-sum((a-a_mean)^2)
+  result3<-sum((b-b_mean)^2)
+  result4<-sqrt(result2*result3)
+  correlation<-result1/result4
+  return(correlation)
+}
+corr.func(FQ1)
+```
+
+Then check if it gives the same result with cor() function:
+```{r, echo = TRUE, eval = TRUE, warning = FALSE, message = FALSE}
+cor(FQ1)
+```
+So corr.func() function has been correctly written.
+
+
+# Further Question 2
+
+```{r, echo = TRUE, eval = TRUE, warning = FALSE, message = FALSE}
+FQ2<-read_csv("FQ2.csv")
+comp.data<-function(data){
+  for(i in 1:nrow(data)){
+    na.col_num<-which(is.na(data[i,])=="TRUE")
+    data[i,na.col_num]<-0
+    data[i,na.col_num]<-1-rowSums(data)[i]
+  }
+  return(data)
+}
+```
+To check whether comp.data() function work or not,we would apply FQ2 data into this function
+```{r, echo = TRUE, eval = TRUE, warning = FALSE, message = FALSE}
+FQ2_new<-comp.data(FQ2)
+FQ2_new
+```
+So all of the missing values(NA's) has been replaced by its relative proportion
+

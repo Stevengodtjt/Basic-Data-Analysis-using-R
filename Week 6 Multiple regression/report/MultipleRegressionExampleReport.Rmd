@@ -1,0 +1,157 @@
+---
+title: "Multiple Regression Example Report"
+output:
+  pdf_document:
+          latex_engine: xelatex
+          number_sections: yes
+fig_caption: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment = NA)
+```
+
+```{r libraries, echo = FALSE, eval = TRUE, warning = FALSE, message = FALSE}
+library(ggplot2)
+library(dplyr)
+library(skimr)
+library(knitr)
+library(moderndive)
+library(kableExtra)
+library(gridExtra)
+library(datasets)
+library(MASS)
+```
+
+# Introduction
+
+There are hundreds of species of flowering plants, with one such genus known as the iris. Edgar Anderson procured measurements (in centimetres) from 150 different flowers from three different iris species. The measurements are on the petal length and width, and sepal length and width from each flower. The three different iris species are the setosa, versicolor, and virginica. Here, we shall analyse the relationship between sepal width and sepal length and see whether the relationship, if any, is different across the three species of iris.
+
+Section \ref{sec:eda} consists of an exploratory analysis of the iris data and explores the potential relationship between sepal width and length, and whether there are any differences between the three species of the iris genus. Section \ref{sec:fda} contains the results from fitting a multiple regression model to the data, as well as the assessment of the model assumptions. Concluding remarks are given in Section \ref{sec:con}.
+
+# Exploratory data analysis {#sec:eda}
+
+```{r data, echo = FALSE, eval = TRUE, warning = FALSE, message = FALSE}
+Irs <- iris %>%
+  dplyr::select(Sepal.Width, Sepal.Length, Species)
+```
+
+Table \ref{tab:summary} displays the mean, median and standard deviation for sepal width and length for each of the three different species of iris. From Table \ref{tab:summary}, we can see that the sepal length is, on average, greater than sepal width. The species setosa has the shortest, on average, sepal length, followed by versicolor and then virginica with the longest average petal length. However, the species setosa has the largest, on average, sepal width, followed by virginica and versicolor, respectively. From the standard deviation, the variability in sepal width is relatively similar for each species, however, there is more variability in sepal length, with the standard deviation for the species virginica almost twice that of the species setosa.
+              
+```{r summary, echo = FALSE, eval = TRUE, warning = FALSE, message = FALSE}
+Irs %>%
+  group_by(Species) %>%
+   summarize('Width (Mean)' = mean(Sepal.Width), 'Width (Median)' = median(Sepal.Width),
+             'Width (sd)' = sd(Sepal.Width), 'Length (Mean)' = mean(Sepal.Length),
+             'Length (Median)' = median(Sepal.Length), 'Length (sd)' = sd(Sepal.Length)) %>%
+  kable(caption = '\\label{tab:summary} Mean, median and standard deviation (sd) sepal width and length by species of iris.', booktabs = TRUE, digits = 2) %>%
+  kable_styling(font_size = 9, latex_options = "hold_position")
+```
+
+```{r correlation, echo = FALSE, eval = TRUE, warning = FALSE, message = FALSE}
+Cors <- Irs %>%
+        group_by(Species) %>%
+        summarize('Correlation' = cor(Sepal.Width, Sepal.Length))
+```
+
+Table \ref{tab:cor} displays the correlation between sepal width and length for each species of iris. Here, we can see that there is strong positive correlation between sepal width and length for the species setosa (`r round(Cors[Cors$Species == "setosa", 2], 3)`), while there is moderate and weak positive correlation for the species versicolor (`r round(Cors[Cors$Species == "versicolor", 2], 3)`) and virginica (`r round(Cors[Cors$Species == "virginica", 2], 3)`), respectively. 
+
+```{r corrtable, echo = FALSE, eval = TRUE, warning = FALSE, message = FALSE}
+Cors %>%
+  kable(caption = '\\label{tab:cor} Correlation between sepal width and length by species.', booktabs = TRUE, digits = 3) %>%
+  kable_styling(font_size = 9, latex_options = "hold_position")
+```
+
+Figure \ref{fig:scat} displays the relationship between sepal width and length by species. As sepal length increases, sepal width tends to increase, that is, there appears to be a positive linear relationship. Sepal length tends to be greater for the species virginica, followed by versicolor, with setosa tending to have the shortest sepal length. However, the setosa species tends to have longer sepal width, with setosa in a clear ‘cluster’ on its own.
+
+```{r ggplot, echo = FALSE, eval = TRUE, out.width = '80%', fig.align = "center", warning = FALSE, fig.cap = "\\label{fig:scat} Relationship between sepal width and sepal length by species."}
+ggplot(Irs, aes(x = Sepal.Length, y = Sepal.Width, color = Species)) +
+  geom_point() +
+  labs(x = "Sepal length (in centimetres)", y = "Sepal width (in centimetres)", color = "Species") 
+```
+
+# Formal data analysis {#sec:fda}
+
+We start by fitting the full multiple regression model containing all explanatory variables and separate regression lines for each species. The full model can be written as:
+
+\begin{align}
+y_{i} &= \alpha + \beta_1 \cdot x_{1i} + \beta_2 \cdot x_{2i} + \beta_3 \cdot x_{1i} \cdot x_{2i} + \epsilon_i, ~~~~ \epsilon_i \sim N(0, \sigma^2), ~~~~ i=1,\ldots,150 \nonumber \\
+&= \alpha + \beta_{\mbox{length}} \cdot \mbox{length} + \beta_{\mbox{species}} \cdot \mathbb{I}_{\mbox{species}}(x) + \beta_{\mbox{length, species}} \cdot \mbox{length} \cdot \mathbb{I}_{\mbox{species}}(x) + \epsilon_i, \nonumber
+\end{align}
+
+where
+
+  * $\alpha$ is the intercept of the regression line for the baseline species (setosa);
+  * $\beta_{\mbox{length}}$ is the slope of the regression line for the baseline species (setosa);
+  * $\beta_{\mbox{species}}$ is the additional term added to $\alpha$ to get the intercept of the regression line for the specified species;
+  * $\beta_{\mbox{length, species}}$ is the additional term added to $\beta_{\mbox{length}}$ to get the slope of the regression line for the specified species; and
+  * $\mathbb{I}_{\mbox{species}}(x)$ is an indicator function indicating the chosen species.
+
+```{r model, echo = FALSE, eval = TRUE, warning = FALSE, message = FALSE}
+int.model <- lm(Sepal.Width ~ Sepal.Length * Species, data = Irs)
+step.model <- stepAIC(int.model, direction = "backward", trace = FALSE)
+# trace = FALSE here is to prevent the R output from being printing in the Markdown document. To see the steps of the process and determine the final model set trace = TRUE.
+Coefs <- round(coef(step.model), 3)
+AIC <- step.model$anova[, 6]
+```
+
+Stepwise regression with backward selection will be used to determine whether the full model can be reduced based on the Akaike information criterion (AIC). Hence, the model which results in the lowest AIC will result in the final model fitted to the data. In this case, the final model detailed above with separate regression lines for each species provides the lowest AIC (`r round(AIC, 3)`). The regression coefficients from the model are displayed in Table \ref{tab:regtable}. 
+
+```{r regtable, echo = FALSE, eval = TRUE, warning = FALSE, message = FALSE}
+get_regression_table(step.model)[, c(1, 2, 5)] %>%
+  kable(caption = '\\label{tab:regtable} Estimates of the regression model coefficients.', format = 'latex', booktabs = TRUE) %>%
+  kable_styling(latex_options = 'HOLD_position')
+```
+
+Hence, from Table \ref{tab:regtable} we obtain the following regression lines: 
+
+\begin{align}
+\widehat{\mbox{width}}_{\mbox{setosa}} &= `r Coefs[1]` + `r Coefs[2]` \cdot \mbox{length} \\
+\widehat{\mbox{width}}_{\mbox{versicolor}} &= `r Coefs[1] + Coefs[3]` + `r Coefs[2] + Coefs[5]` \cdot \mbox{length} \\
+\widehat{\mbox{width}}_{\mbox{virginica}} &= `r Coefs[1] + Coefs[4]` + `r Coefs[2] + Coefs[6]` \cdot \mbox{length}
+\end{align}
+
+That is, the relationship between sepal width and sepal length differs by species. For example, for the species setosa, sepal width increases, on average, by `r Coefs[2]` for every one unit increase in sepal length. Hence, sepal width increases quicker with length than it does for the other two species (`r Coefs[2] + Coefs[5]` and `r Coefs[2] + Coefs[6]`, respectively). The separate regression lines for each species are displayed in Figure \ref{fig:scat2}.
+
+```{r ggplot2, echo = FALSE, eval = TRUE, out.width = '80%', fig.align = "center", warning = FALSE, fig.cap = "\\label{fig:scat2} Relationship between sepal width and sepal length by species with the regression lines superimposed.", fig.pos = "H"}
+ggplot(Irs, aes(x = Sepal.Length, y = Sepal.Width, color = Species)) +
+  geom_point() +
+  labs(x = "Sepal length (in centimetres)", y = "Sepal width (in centimetres)", color = "Species") +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+```{r regpoints, echo = FALSE, eval = TRUE, warning = FALSE, message = FALSE}
+regression.points <- get_regression_points(int.model)
+```
+
+Figure \ref{fig:resids} displays the residuals versus sepal length and the fitted values for each species, respectively. The assumptions of the residuals having mean zero and constant variance across all values of the explanatory variable (sepal length), as well as the fitted values, appear to hold. This is observed from the even scatter of points above and below the zero line indicating the residuals have mean zero. The scattering of the points is also constant across all values of sepal length with no systematic pattern observed in the residuals.
+
+```{r residplots, echo = FALSE, eval = TRUE, fig.width = 12, fig.align = "center", warning = FALSE, fig.cap = "\\label{fig:resids} Residuals versus sepal length (left) and the fitted values (right) by species.", fig.pos = "H"}
+p1 <- ggplot(regression.points, aes(x = Sepal.Length, y = residual)) +
+      geom_point() +
+      labs(x = "Sepal length (in centimetres)", y = "Residual") +
+      geom_hline(yintercept = 0, col = "blue", size = 1) +
+      facet_wrap(~ Species)
+
+p2 <- ggplot(regression.points, aes(x = Sepal.Width_hat, y = residual)) +
+      geom_point() +
+      labs(x = "Fitted values", y = "Residual") +
+      geom_hline(yintercept = 0, col = "blue", size = 1) +
+      facet_wrap(~ Species)
+
+grid.arrange(p1, p2, ncol = 2)
+```
+
+Figure \ref{fig:residhist} displays histograms of the residuals by species. Here we can see that the residuals appear to be bell-shaped and centred at zero. Hence, the assumption of having normally distributed residuals with mean zero appears to be valid.
+
+```{r residplots2, echo = FALSE, eval = TRUE, fig.width = 12, fig.align = "center", warning = FALSE, fig.cap = "\\label{fig:residhist} Histograms of the residuals by species.", message = FALSE, fig.pos = "H"}
+ggplot(regression.points, aes(x = residual)) +
+      geom_histogram(color = "white") +
+      labs(x = "Residual") +
+      facet_wrap(~ Species)
+```
+
+# Conclusions {#sec:con}
+
+Sepal width and sepal length are positively related, with sepal width increasing with increasing sepal length. This relationship was found to be different by species, with separate regression lines having to be fitted by species. The species setosa has a stronger relationship between sepal width and length, where sepal width increases, on average, by `r Coefs[2]` with every one unit increase in length. In comparison, the species versicolor and virginica have a more similar relationship, with sepal width increasing, on average, by `r Coefs[2] + Coefs[5]` and `r Coefs[2] + Coefs[6]`, respectively, with every one unit increase in sepal length.
+
